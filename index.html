@@ -1612,11 +1612,9 @@
 <form
   class="contact-card contact-form reveal-up reveal-delay-2"
   id="contactForm"
-  action="https://api.web3forms.com/submit"
+  action="https://formspree.io/f/xkokrwbl"
   method="POST"
 >
-  <input type="hidden" name="access_key" value="1ec6557f-d608-439e-86f5-c253c82e30c1">
-
   <h3 data-fr="Envoyer un message" data-en="Send a message">Envoyer un message</h3>
 
   <label for="name" data-fr="Nom" data-en="Name">Nom</label>
@@ -1624,8 +1622,6 @@
     type="text"
     id="name"
     name="name"
-    data-fr="Votre nom"
-    data-en="Your name"
     placeholder="Votre nom"
     required
   />
@@ -1635,8 +1631,6 @@
     type="email"
     id="email"
     name="email"
-    data-fr="votre@email.com"
-    data-en="your@email.com"
     placeholder="votre@email.com"
     required
   />
@@ -1646,11 +1640,17 @@
     id="message"
     name="message"
     rows="5"
-    data-fr="Votre message..."
-    data-en="Your message..."
     placeholder="Votre message..."
     required
   ></textarea>
+
+  <button type="submit" class="btn-primary btn-anim">
+    <span class="btn-backdrop"></span>
+    <span class="btn-label" data-fr="Envoyer" data-en="Send">Envoyer</span>
+  </button>
+
+  <p class="form-note" id="formNote"></p>
+</form>
 
   <button type="submit" class="btn-primary btn-anim">
     <span class="btn-backdrop"></span>
