@@ -323,9 +323,6 @@ window.addEventListener("load", () => {
   toggleBackToTop();
 });
 
-/* ============================================================
-CONTACT FORM (WEB3FORMS)
-============================================================ */
 const form = document.getElementById("contactForm");
 const formNote = document.getElementById("formNote");
 const submitBtn = form?.querySelector('button[type="submit"]');
@@ -334,7 +331,6 @@ if (form) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    // Récupérer les valeurs (au cas où)
     const name = form.querySelector("#name")?.value.trim();
     const email = form.querySelector("#email")?.value.trim();
     const message = form.querySelector("#message")?.value.trim();
@@ -344,36 +340,34 @@ if (form) {
       return;
     }
 
-    // Préparer FormData
-    const formData = new FormData(form);
-
-    // Sécuriser l’access key (optionnel, mais utile si elle n’est pas envoyée)
-    // (dans ton HTML elle est bien en hidden, donc normalement pas besoin)
-    if (!formData.get("access_key")) {
-      formData.append("access_key", "1ec6557f-d608-439e-86f5-c253c82e30c1");
-    }
-
-    // UI
     if (formNote) formNote.textContent = "Envoi en cours...";
+
+    const originalText = submitBtn?.textContent;
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.dataset.originalText = submitBtn.textContent;
       submitBtn.textContent = "Sending...";
     }
 
     try {
-      const response = await fetch("https://api.web3forms.com/submit", {
+      const formData = new FormData(form);
+
+      const response = await fetch(form.action, {
         method: "POST",
-        body: formData
+        body: formData,
+        headers: {
+          "Accept": "application/json"
+        }
       });
 
-      const data = await response.json();
+      // Formspree renvoie souvent JSON
+      const data = await response.json().catch(() => null);
 
-      if (response.ok && data.success) {
+      if (response.ok) {
         if (formNote) formNote.textContent = "Message envoyé ✅";
         form.reset();
       } else {
-        if (formNote) formNote.textContent = "Erreur : " + (data.message || "Envoi impossible");
+        if (formNote)
+          formNote.textContent = "Erreur : " + (data?.error || "Envoi impossible.");
       }
     } catch (err) {
       console.error(err);
@@ -381,12 +375,11 @@ if (form) {
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = submitBtn.dataset.originalText || "Envoyer";
+        submitBtn.textContent = originalText || "Envoyer";
       }
     }
   });
 }
-
 
 /* ============================================================
    FOOTER YEAR
