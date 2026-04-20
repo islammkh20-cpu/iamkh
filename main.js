@@ -764,3 +764,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+
+  /* ---------------------------
+     fenaitre 
+  ---------------------------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+  const cvLink = document.querySelector('a[href="cv/Mon-CV.pdf"]');
+  const modal = document.getElementById("cvNoticeModal");
+  const closeBtn = document.getElementById("cvNoticeClose");
+  const dismissBtn = document.getElementById("cvNoticeDismiss");
+  const goContactBtn = document.getElementById("cvNoticeGoContact");
+
+  if (!cvLink || !modal) return;
+
+  const openModal = () => {
+    modal.style.display = "flex";
+    modal.setAttribute("aria-hidden", "false");
+  };
+
+  const closeModal = () => {
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  cvLink.addEventListener("click", (e) => {
+    e.preventDefault(); // empêche le téléchargement direct du PDF
+    openModal();
+  });
+
+  closeBtn?.addEventListener("click", closeModal);
+  dismissBtn?.addEventListener("click", closeModal);
+
+  // Fermer quand on clique sur le fond
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Fermer au clic sur le lien contact
+  goContactBtn?.addEventListener("click", closeModal);
+
+  // Option accessibilité : ESC
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.style.display === "flex") closeModal();
+  });
+});
