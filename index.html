@@ -1,790 +1,1812 @@
-/* ============================================================
-   HELPERS
-============================================================ */
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-/* ============================================================
-   READING BAR
-============================================================ */
-const readingBar = $("#readingBar");
-
-function updateReadingBar() {
-  if (!readingBar) return;
-  const scrollTop = window.scrollY || document.documentElement.scrollTop;
-  const docHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-  readingBar.style.width = (docHeight > 0 ? (scrollTop / docHeight) * 100 : 0) + "%";
-}
-
-/* ============================================================
-   CUSTOM CURSOR
-============================================================ */
-const cursorDot = $(".cursor-dot");
-const cursorRing = $(".cursor-ring");
-const canUseCustomCursor = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-if (cursorDot && cursorRing && canUseCustomCursor) {
-  document.addEventListener("mousemove", (e) => {
-    const x = e.clientX + "px";
-    const y = e.clientY + "px";
-    cursorDot.style.left = x;
-    cursorDot.style.top = y;
-    cursorRing.style.left = x;
-    cursorRing.style.top = y;
-  });
-
-  $$("a, button, .hero-card, .skills-card").forEach(el => {
-    el.addEventListener("mouseenter", () => cursorRing.classList.add("hovered"));
-    el.addEventListener("mouseleave", () => cursorRing.classList.remove("hovered"));
-  });
-}
-
-/* ============================================================
-   THEME TOGGLE
-============================================================ */
-const themeToggle = $("#themeToggle");
-const themeIcon = themeToggle?.querySelector(".theme-icon");
-const themeLabel = themeToggle?.querySelector(".theme-label");
-
-(function initTheme() {
-  const savedTheme = localStorage.getItem("portfolio-theme");
-  const isLight = savedTheme === "light";
-
-  document.body.classList.toggle("light-mode", isLight);
-  if (themeIcon) themeIcon.textContent = isLight ? "🌙" : "☀️";
-  if (themeLabel) themeLabel.textContent = isLight ? "Dark" : "Light";
-})();
-
-themeToggle?.addEventListener("click", () => {
-  const isLight = document.body.classList.toggle("light-mode");
-  if (themeIcon) themeIcon.textContent = isLight ? "🌙" : "☀️";
-  if (themeLabel) themeLabel.textContent = isLight ? "Dark" : "Light";
-  localStorage.setItem("portfolio-theme", isLight ? "light" : "dark");
-});
-
-/* ============================================================
-   GREETING DYNAMIQUE
-============================================================ */
-function updateGreeting(lang) {
-  const greetingEl = $("#greetingText");
-  if (!greetingEl) return;
-
-  const hour = new Date().getHours();
-  const greetings = {
-    fr: {
-      morning: " Bienvenue dans mon portfolio ☀️",
-      afternoon: " Bienvenue dans mon portfolio 🌤️",
-      evening: " Bienvenue dans mon portfolio 🌙",
-      night: " Bienvenue dans mon portfolio 🌟",
-    },
-    en: {
-      morning: " Welcome to my portfolio ☀️",
-      afternoon: " Welcome to my portfolio 🌤️",
-      evening: " Welcome to my portfolio 🌙",
-      night: " Welcome to my portfolio 🌟",
-    },
-  };
-
-  let period = "night";
-  if (hour >= 6 && hour < 12) period = "morning";
-  else if (hour >= 12 && hour < 18) period = "afternoon";
-  else if (hour >= 18 && hour < 22) period = "evening";
-
-  const safeLang = lang === "en" ? "en" : "fr";
-  greetingEl.textContent = greetings[safeLang][period];
-}
-
-/* ============================================================
-   LANGUAGE TOGGLE (FR / EN)
-============================================================ */
-const langToggle = $("#langToggle");
-
-function applyLanguage(lang) {
-  const safeLang = (lang === "fr" || lang === "en") ? lang : "fr";
-  document.documentElement.lang = safeLang;
-
-  $$("[data-fr][data-en]").forEach(el => {
-    const value = safeLang === "fr" ? el.dataset.fr : el.dataset.en;
-    if (!value) return;
-
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-      el.value = value;
-    } else {
-      el.innerHTML = value;
-    }
-  });
-
-  const burger = $("#hamburger");
-  if (burger) {
-    const aria = safeLang === "fr" ? burger.dataset.frAria : burger.dataset.enAria;
-    if (aria) burger.setAttribute("aria-label", aria);
-  }
-
-  $$("[data-lang]").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.lang === safeLang);
-  });
-
-  updateGreeting(safeLang);
-  if (typeof window.__twReset === "function") window.__twReset();
-
-  localStorage.setItem("siteLang", safeLang);
-}
-
-(function initLanguage() {
-  const saved = localStorage.getItem("siteLang");
-  const browserLang = navigator.language?.toLowerCase().startsWith("fr") ? "fr" : "en";
-  applyLanguage(saved || browserLang || "fr");
-})();
-
-langToggle?.addEventListener("click", () => {
-  const current = document.documentElement.lang === "en" ? "en" : "fr";
-  const next = current === "fr" ? "en" : "fr";
-
-  // on sauvegarde la nouvelle langue
-  localStorage.setItem("siteLang", next);
-
-  // rafraîchissement de la page
-  window.location.reload();
-});
-
-/* ============================================================
-   REVEAL (global observer)
-============================================================ */
-let revealObserver = null;
-
-function initRevealObserver() {
-  const revealEls = $$(".reveal-up");
-
-  if ("IntersectionObserver" in window && revealEls.length > 0) {
-    revealObserver = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (!entry.isIntersecting) return;
-        entry.target.classList.add("is-visible");
-        observer.unobserve(entry.target);
-      });
-    }, { threshold: 0.15 });
-
-    revealEls.forEach(el => revealObserver.observe(el));
-  } else {
-    revealEls.forEach(el => el.classList.add("revealed"));
-  }
-}
-
-function bindRevealAnimations(scope = document) {
-  if (!revealObserver) return;
-  $$(".reveal-up:not(.is-visible)", scope).forEach(el => revealObserver.observe(el));
-}
-
-initRevealObserver();
-
-/* ============================================================
-   HAMBURGER
-============================================================ */
-const hamburger = $("#hamburger");
-const nav = $("#nav");
-
-hamburger?.addEventListener("click", () => {
-  const isOpen = nav?.classList.toggle("open");
-  hamburger.setAttribute("aria-expanded", String(!!isOpen));
-});
-
-nav?.querySelectorAll("a").forEach(link => {
-  link.addEventListener("click", () => {
-    nav.classList.remove("open");
-    hamburger?.setAttribute("aria-expanded", "false");
-  });
-});
-
-/* ============================================================
-   SKILLS PROGRESS
-============================================================ */
-$$(".skills-category").forEach(category => {
-  const items = $$("li[data-percent]", category);
-
-  function fillBars() {
-    items.forEach(item => {
-      const val = Math.max(0, Math.min(100, parseInt(item.dataset.percent || "0", 10)));
-      const bar = $(".progress-bar", item);
-      const txt = $(".percent-text", item);
-      if (bar) bar.style.width = val + "%";
-      if (txt) txt.textContent = val + "%";
-    });
-  }
-
-  function resetBars() {
-    items.forEach(item => {
-      const bar = $(".progress-bar", item);
-      if (bar) bar.style.width = "0%";
-    });
-  }
-
-  category.addEventListener("mouseenter", fillBars);
-  category.addEventListener("mouseleave", resetBars);
-  category.addEventListener("touchstart", fillBars, { passive: true });
-});
-
-/* ============================================================
-   SCROLLSPY + SCROLL OPTI
-============================================================ */
-const sections = $$("section[id]");
-const navLinks = $$(".nav a[href^='#']");
-
-function setActiveNav() {
-  let currentId = "";
-  sections.forEach(s => {
-    const r = s.getBoundingClientRect();
-    if (r.top - 120 <= 0 && r.bottom - 120 > 0) currentId = s.id;
-  });
-
-  navLinks.forEach(link => {
-    link.classList.toggle("active", currentId && link.getAttribute("href") === `#${currentId}`);
-  });
-}
-
-let ticking = false;
-function onScrollOptimized() {
-  if (ticking) return;
-  ticking = true;
-
-  requestAnimationFrame(() => {
-    updateReadingBar();
-    setActiveNav();
-    toggleBackToTop();
-    ticking = false;
-  });
-}
-
-window.addEventListener("scroll", onScrollOptimized, { passive: true });
-window.addEventListener("load", () => {
-  updateReadingBar();
-  setActiveNav();
-  toggleBackToTop();
-});
-
-const form = document.getElementById("contactForm");
-const formNote = document.getElementById("formNote");
-const submitBtn = form?.querySelector('button[type="submit"]');
-
-if (form) {
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const name = form.querySelector("#name")?.value.trim();
-    const email = form.querySelector("#email")?.value.trim();
-    const message = form.querySelector("#message")?.value.trim();
-
-    if (!name || !email || !message) {
-      if (formNote) formNote.textContent = "Merci de remplir tous les champs.";
-      return;
-    }
-
-    if (formNote) formNote.textContent = "Envoi en cours...";
-
-    const originalText = submitBtn?.textContent;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Sending...";
-    }
-
-    try {
-      const formData = new FormData(form);
-
-      const response = await fetch(form.action, {
-        method: "POST",
-        body: formData,
-        headers: {
-          "Accept": "application/json"
-        }
-      });
-
-      // Formspree renvoie souvent JSON
-      const data = await response.json().catch(() => null);
-
-      if (response.ok) {
-        if (formNote) formNote.textContent = "Message envoyé ✅";
-        form.reset();
-      } else {
-        if (formNote)
-          formNote.textContent = "Erreur : " + (data?.error || "Envoi impossible.");
-      }
-    } catch (err) {
-      console.error(err);
-      if (formNote) formNote.textContent = "Une erreur réseau s'est produite. Réessayez.";
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalText || "Envoyer";
-      }
-    }
-  });
-}
-
-/* ============================================================
-   FOOTER YEAR
-============================================================ */
-const yearNow = $("#yearNow");
-if (yearNow) yearNow.textContent = new Date().getFullYear();
-
-/* ============================================================
-   BACK TO TOP
-============================================================ */
-const backToTop = $("#backToTop");
-
-function toggleBackToTop() {
-  if (!backToTop) return;
-  backToTop.classList.toggle("show", window.scrollY > 450);
-}
-
-backToTop?.addEventListener("click", () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
-/* ============================================================
-   3D TILT EFFECT
-============================================================ */
-$$(".tilt-card").forEach(card => {
-  const maxTilt = 8;
-
-  function onMove(e) {
-    const rect = card.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
-
-    const rotateY = (px - 0.5) * (maxTilt * 2);
-    const rotateX = (0.5 - py) * (maxTilt * 2);
-
-    card.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-4px)`;
-  }
-
-  function resetTilt() {
-    card.style.transform = "perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0)";
-  }
-
-  card.addEventListener("mousemove", onMove);
-  card.addEventListener("mouseleave", resetTilt);
-  card.addEventListener("touchend", resetTilt, { passive: true });
-});
-
-/* ============================================================
-   ONGOING PROGRESS ANIMATION
-============================================================ */
-const progressBars = $$(".progress-fill");
-
-if ("IntersectionObserver" in window && progressBars.length) {
-  const progressObs = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const bar = entry.target;
-      const val = Math.max(0, Math.min(100, parseInt(bar.dataset.progress || "0", 10)));
-      bar.style.width = val + "%";
-      observer.unobserve(bar);
-    });
-  }, { threshold: 0.35 });
-
-  progressBars.forEach(bar => progressObs.observe(bar));
-} else {
-  progressBars.forEach(bar => {
-    const val = Math.max(0, Math.min(100, parseInt(bar.dataset.progress || "0", 10)));
-    bar.style.width = val + "%";
-
-    
-  });
-}
-
-/* ============================================================
-   HERO 3D CONTROL
-============================================================ */
-const hero3D = $(".hero-3d");
-
-function sync3DLang() {
-  const current = document.documentElement.lang?.toLowerCase();
-  if (current !== "fr" && current !== "en") {
-    document.documentElement.lang = "fr";
-  }
-}
-
-function update3DByViewport() {
-  if (!hero3D) return;
-  const isDesktop = window.matchMedia("(min-width: 993px)").matches;
-  hero3D.style.display = isDesktop ? "" : "none";
-}
-
-function handleVisibility3D() {
-  if (!hero3D) return;
-  hero3D.classList.toggle("paused", document.hidden);
-}
-
-sync3DLang();
-update3DByViewport();
-handleVisibility3D();
-
-window.addEventListener("resize", update3DByViewport, { passive: true });
-document.addEventListener("visibilitychange", handleVisibility3D);
-langToggle?.addEventListener("click", () => setTimeout(sync3DLang, 0));
-
-
-/* ---------------------------
-   Typewriter: Spécialisation Master (FR / EN + reset)
----------------------------- */
-(function initUsthbMasterTypewriters() {
-  // 1) Spécialisation
-  const specEl = document.querySelector(".usthb-master-typewriter");
-  // 2) Classement
-  const rankEl = document.querySelector(".usthb-ranking-typewriter");
-
-  if (!specEl && !rankEl) return;
-
-  const typewriterPhrases = {
-    // Affichage après "Spécialisation dans"
-    fr: {
-      spec: [
-        "la conception de systèmes embarqués et de systèmes informatiques fiables et robustes.",
-        "le développement de systèmes de contrôle et d’automatisation.",
-        "l’optimisation des performances en temps réel.",
-      ],
-      rank: [
-    "parmi les meilleures universités du pays.",
-    "1ère au niveau maghrébin en génie électrique et électronique.",
-    "parmi les 401–450 meilleures universités au monde en génie électrique et électronique.",
-    "1ère au niveau maghrébin en informatique et systèmes d’information.",
-    "parmi les 401–450 meilleures universités au monde en informatique et systèmes d’information."
-      ]
-    },
-    // Display after "Specialized in"
-    en: {
-      spec: [
-        "design of reliable and robust embedded and computer systems.",
-        "development of control and automation systems.",
-        "optimization of real-time performance.",
-      ],
-      rank: [
-    "among the leading universities in the country.",
-    "ranked first in the Maghreb in Electrical and Electronic Engineering.",
-    "ranked among the world’s top 401–450 universities in Electrical and Electronic Engineering.",
-    "ranked first in the Maghreb in Computer Science and Information Systems.",
-    "ranked among the world’s top 401–450 universities in Computer Science and Information Systems."
-      ]
-    }
-  };
-
-  const lang = document.documentElement.lang === "en" ? "en" : "fr";
-
-  function createTypewriter(el, phrases) {
-    if (!el) return;
-
-    let pIdx = 0;
-    let cIdx = 0;
-    let deleting = false;
-    let timerId = null;
-
-    function step() {
-      const current = phrases[pIdx];
-
-      if (!deleting) {
-        cIdx++;
-        el.textContent = current.slice(0, cIdx);
-
-        if (cIdx >= current.length) {
-          deleting = true;
-          timerId = setTimeout(step, 1200);
-          return;
-        }
-        timerId = setTimeout(step, 45);
-      } else {
-        cIdx--;
-        el.textContent = current.slice(0, cIdx);
-
-        if (cIdx <= 0) {
-          deleting = false;
-          pIdx = (pIdx + 1) % phrases.length;
-          timerId = setTimeout(step, 250);
-          return;
-        }
-        timerId = setTimeout(step, 25);
-      }
-    }
-
-    function reset() {
-      clearTimeout(timerId);
-      pIdx = 0;
-      cIdx = 0;
-      deleting = false;
-      el.textContent = "";
-      timerId = setTimeout(step, 250);
-    }
-
-    // Démarrage
-    timerId = setTimeout(step, 600);
-
-    return reset;
-  }
-
-  // Instanciation
-  const resetSpec = createTypewriter(specEl, typewriterPhrases[lang].spec);
-  const resetRank = createTypewriter(rankEl, typewriterPhrases[lang].rank);
-
-  // Si ton site déclenche un reset global (comme dans ton script précédent)
-  const previousReset = window.__twReset;
-  window.__twReset = function () {
-    if (typeof previousReset === "function") previousReset();
-    if (typeof resetSpec === "function") resetSpec();
-    if (typeof resetRank === "function") resetRank();
-  };
-})();
-
-/* ---------------------------
-   Typewriter: Spécialisation Licence (FR / EN + reset)
----------------------------- */
-(function () {
-  // Helpers
-  const getLang = () =>
-    (document.documentElement.lang || "fr").toLowerCase().startsWith("en") ? "en" : "fr";
-
-  const lang = getLang();
-
-  // ====== Specialization typewriter ======
-  const specEl = document.querySelector(".usthb-lic-specialization-typewriter");
-  if (specEl) {
-    const specializationTexts = {
-      fr: [
-        "la conception et l’analyse de systèmes.",
-        "le traitement de l’information et l’automatisation.",
-        "le contrôle et la sécurité des systèmes."
-      ],
-      en: [
-        "system design and analysis.",
-        "information processing and automation.",
-        "system control and security."
-      ]
-    };
-    const phrases = specializationTexts[lang] || specializationTexts.fr;
-
-    let phraseIndex = 0;
-    let charIndex = 0;
-    let deleting = false;
-    let timer = null;
-
-    function tick() {
-      const current = phrases[phraseIndex];
-
-      if (!deleting) {
-        charIndex++;
-        specEl.textContent = current.slice(0, charIndex);
-
-        if (charIndex >= current.length) {
-          deleting = true;
-          timer = setTimeout(tick, 1200);
-          return;
-        }
-        timer = setTimeout(tick, 35);
-      } else {
-        charIndex--;
-        specEl.textContent = current.slice(0, charIndex);
-
-        if (charIndex <= 0) {
-          deleting = false;
-          phraseIndex = (phraseIndex + 1) % phrases.length;
-        }
-        timer = setTimeout(tick, 20);
-      }
-    }
-
-    function reset() {
-      if (timer) clearTimeout(timer);
-      phraseIndex = 0;
-      charIndex = 0;
-      deleting = false;
-      specEl.textContent = "";
-      timer = setTimeout(tick, 300);
-    }
-
-    reset();
-  }
-
-  // ====== Ranking typewriter ======
-  const rankEl = document.querySelector(".usthb-lic-ranking-typewriter");
-  if (rankEl) {
-    const rankTexts = {
-      fr: [
-        "parmi les meilleures universités du pays",
-        "reconnue pour la qualité de ses formations",
-        "et son expertise en recherche scientifique",
-        "avec une forte attractivité académique"
-      ],
-      en: [
-        "among the leading universities in the country",
-        "recognized for the quality of its programs",
-        "and its expertise in scientific research",
-        "with strong academic attractiveness"
-      ]
-    };
-
-    const phrases = rankTexts[lang] || rankTexts.fr;
-
-    let phraseIndex = 0;
-    let charIndex = 0;
-    let deleting = false;
-    let timer = null;
-
-    function tickRank() {
-      const current = phrases[phraseIndex];
-
-      if (!deleting) {
-        charIndex++;
-        rankEl.textContent = current.slice(0, charIndex);
-
-        if (charIndex >= current.length) {
-          deleting = true;
-          timer = setTimeout(tickRank, 1100);
-          return;
-        }
-        timer = setTimeout(tickRank, 35);
-      } else {
-        charIndex--;
-        rankEl.textContent = current.slice(0, charIndex);
-
-        if (charIndex <= 0) {
-          deleting = false;
-          phraseIndex = (phraseIndex + 1) % phrases.length;
-        }
-        timer = setTimeout(tickRank, 20);
-      }
-    }
-
-    function resetRank() {
-      if (timer) clearTimeout(timer);
-      phraseIndex = 0;
-      charIndex = 0;
-      deleting = false;
-      rankEl.textContent = "";
-      timer = setTimeout(tickRank, 250);
-    }
-
-    resetRank();
-  }
-})();
-
-
-/* ---------------------------
-   Typewriter: Esic (FR / EN + reset)
----------------------------- */
-(function initEsicRncpTypewriter() {
-  const el = document.querySelector(".rncp-objectif-typewriter");
-  if (!el) return;
-
-  const typewriterPhrases = {
-    fr: [
-      "gérer des systèmes d'information complexes.",
-      "concevoir des solutions informatiques sécurisées.",
-      "diriger des projets informatiques.",
-      "s'adapter aux évolutions technologiques."
-    ],
-    en: [
-      "manage complex information systems.",
-      "design secure IT solutions.",
-      "lead IT projects.",
-      "adapt to technological evolutions."
-    ]
-  };
-
-  let phrases = typewriterPhrases[
-    document.documentElement.lang === "en" ? "en" : "fr"
-  ];
-
-  let pIdx = 0;
-  let cIdx = 0;
-  let deleting = false;
-  let timerId = null;
-
-  function step() {
-    const current = phrases[pIdx];
-
-    if (!deleting) {
-      cIdx++;
-      el.textContent = current.slice(0, cIdx);
-
-      if (cIdx >= current.length) {
-        deleting = true;
-        timerId = setTimeout(step, 1200);
-        return;
-      }
-      timerId = setTimeout(step, 45);
-    } else {
-      cIdx--;
-      el.textContent = current.slice(0, cIdx);
-
-      if (cIdx <= 0) {
-        deleting = false;
-        pIdx = (pIdx + 1) % phrases.length;
-        timerId = setTimeout(step, 250);
-        return;
-      }
-      timerId = setTimeout(step, 25);
-    }
-  }
-
-  function resetTypewriterForLang() {
-    clearTimeout(timerId);
-    phrases = typewriterPhrases[
-      document.documentElement.lang === "en" ? "en" : "fr"
-    ];
-    pIdx = 0;
-    cIdx = 0;
-    deleting = false;
-    el.textContent = "";
-    timerId = setTimeout(step, 250);
-  }
-
-  const previousReset = window.__twReset;
-  window.__twReset = function () {
-    if (typeof previousReset === "function") previousReset();
-    resetTypewriterForLang();
-  };
-
-  timerId = setTimeout(step, 600);
-})();
-
-  /* ---------------------------
-     fenaitre 
-  ---------------------------- */
-
-document.addEventListener("DOMContentLoaded", () => {
-  const cvLink = document.querySelector('a[href="cv/Mon-CV.pdf"]');
-  const modal = document.getElementById("cvNoticeModal");
-  const closeBtn = document.getElementById("cvNoticeClose");
-  const dismissBtn = document.getElementById("cvNoticeDismiss");
-  const goContactBtn = document.getElementById("cvNoticeGoContact");
-
-  if (!cvLink || !modal) return;
-
-  const openModal = () => {
-    modal.style.display = "flex";
-    modal.setAttribute("aria-hidden", "false");
-  };
-
-  const closeModal = () => {
-    modal.style.display = "none";
-    modal.setAttribute("aria-hidden", "true");
-  };
-
-  cvLink.addEventListener("click", (e) => {
-    e.preventDefault(); // empêche le téléchargement direct du PDF
-    openModal();
-  });
-
-  closeBtn?.addEventListener("click", closeModal);
-  dismissBtn?.addEventListener("click", closeModal);
-
-  // Fermer quand on clique sur le fond
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) closeModal();
-  });
-
-  // Fermer au clic sur le lien contact
-  goContactBtn?.addEventListener("click", closeModal);
-
-  // Option accessibilité : ESC
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal.style.display === "flex") closeModal();
-  });
-});
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio - Ahmed MAKHLOUFI</title>
+
+  <meta name="description" content="Portfolio d'Ahmed MAKHLOUFI - Data Analyst, BI, Cloud, DevOps, Systèmes embarqués et IoT." />
+  <meta name="theme-color" content="#020205" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Icons -->
+  <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+</head>
+<body>
+
+<div id="top"></div>
+
+  <!-- Reading progress -->
+  <div class="reading-bar" id="readingBar"></div>
+
+  <!-- Custom cursor -->
+  <div class="cursor-dot"></div>
+  <div class="cursor-ring"></div>
+
+  <!-- Top controls -->
+  <div class="top-controls">
+    <button id="langToggle" class="top-btn" aria-label="Changer la langue">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <span class="lang-label" data-fr="EN" data-en="FR">EN</span>
+    </button>
+
+    <button id="themeToggle" class="top-btn" aria-label="Changer le thème">
+      <span class="theme-icon" aria-hidden="true">☀️</span>
+      <span class="theme-label" data-fr="Clair" data-en="Light">Clair</span>
+    </button>
+
+  </div>
+
+<!-- Header -->
+<header class="header">
+  <div class="container header-content header-centered">
+    <a href="#top" class="logo" aria-label="Retour en haut">
+      A<span>M</span>
+    </a>
+
+    <button
+      class="hamburger"
+      id="hamburger"
+      aria-label="Ouvrir le menu"
+      data-fr-aria="Ouvrir le menu"
+      data-en-aria="Open menu"
+      aria-expanded="false"
+      aria-controls="nav"
+      type="button"
+    >
+      <span></span><span></span><span></span>
+    </button>
+
+    <nav class="nav" id="nav" aria-label="Navigation principale">
+      <a href="#top" data-fr="Accueil" data-en="Home">Accueil</a>
+      <a href="#about" data-fr="À propos" data-en="About">À propos</a>
+      <a href="#experience" data-fr="Parcours" data-en="Journey">Parcours</a>
+      <a href="#projects" data-fr="Projets" data-en="Projects">Projets</a>
+      <a href="#skills" data-fr="Compétences" data-en="Skills">Compétences</a>
+      <a href="#certifications" data-fr="Certifications" data-en="Certifications">Certifications</a>
+      <a href="#contact" data-fr="Contact" data-en="Contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+
+  <main id="mainContent">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg-overlay"></div>
+    <div class="container hero-content">
+
+      <div class="hero-text reveal-up">
+        <div class="hero-badges">
+          <span class="badge badge-primary"
+            data-fr="Systèmes d'Information & Sécurité"
+            data-en="Information Systems & Security">Systèmes d'Information & Sécurité</span>
+          <span class="badge badge-secondary"
+            data-fr="Data Analyst & Business Intelligence"
+            data-en="Data Analyst & Business Intelligence">Data Analyst & Business Intelligence</span>
+          <span class="badge badge-accent"
+            data-fr="Systèmes embarqués & IoT"
+            data-en="Embedded Systems & IoT">Systèmes embarqués & IoT</span>
+        </div>
+
+        <h1 class="hero-title">Ahmed MAKHLOUFI</h1>
+
+        <p class="hero-subtitle">
+          <span data-fr="Ingénieur en électronique des systèmes embarqués, et"
+                data-en="Embedded systems electronics engineer, and">Ingénieur en électronique des systèmes embarqués, et</span>
+          <span class="highlight typewriter-target"></span>
+        </p>
+
+        <ul class="hero-highlights">
+          <li>
+            <span class="icon">👋</span>
+            <span id="greetingText">Bienvenue dans mon portfolio</span>
+          </li>
+        </ul>
+
+        <div class="hero-actions">
+          <a href="#contact" class="btn-primary btn-anim">
+            <span class="btn-spark"></span>
+            <span class="btn-backdrop"></span>
+            <span class="btn-label" data-fr="Me contacter" data-en="Contact me">Me contacter</span>
+          </a>
+          <a href="cv/Mon-CV.pdf" class="btn-cv btn-anim" target="_blank" rel="noopener noreferrer">
+            <span class="btn-spark"></span>
+            <span class="btn-backdrop"></span>
+            <span class="btn-label" data-fr="Mon CV" data-en="My Resume">Mon CV</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-card reveal-up reveal-delay-2">
+        <div class="hero-avatar">
+          <img src="images/fge_me.jpg" alt="Photo de profil d'Ahmed MAKHLOUFI" class="hero-photo" />
+        </div>
+          <div class="hero-card-content">
+          <!-- Logo Orange -->
+          <div class="orange-logo-wrap">
+            <img src="images/orange_logo_.jpg" alt="Orange Business" class="orange-logo" />
+          </div>
+
+          <h3 class="hero-role"
+            data-fr="Alternant data analyst chez Orange Business"
+            data-en="Data analyst apprentice at Orange Business">Alternant data analyst chez Orange Business</h3>
+          <p class="hero-status"
+            data-fr="@Orange_Business"
+            data-en="@Orange_Business">@Orange_Business</p>
+          <div class="hero-badge-location">
+            <span>📍</span>
+            <span data-fr="Sophia Antipolis - France" data-en="Sophia Antipolis - France">Sophia Antipolis - France</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<!-- CV notice modal -->
+<div id="cvNoticeModal" class="cv-notice-modal" aria-hidden="true">
+  <div class="cv-notice-box" role="dialog" aria-modal="true" aria-labelledby="cvNoticeTitle">
+    <div class="cv-notice-header">
+      <h3 id="cvNoticeTitle" data-fr="Accès au CV" data-en="CV Access">Accès au CV</h3>
+      <button type="button" class="cv-notice-close" id="cvNoticeClose" aria-label="Fermer">
+        ✕
+      </button>
+    </div>
+
+    <p class="cv-notice-text" data-fr="Pour recevoir mon CV, merci de m’envoyer un message via le formulaire de contact."
+       data-en="To receive my CV, please send me a message using the contact form.">
+      Pour recevoir mon CV, merci de m’envoyer un message via le formulaire de contact.
+    </p>
+
+    <div class="cv-notice-actions">
+      <a href="#contact" class="btn-primary btn-anim" id="cvNoticeGoContact">
+        <span class="btn-spark"></span>
+        <span class="btn-backdrop"></span>
+        <span class="btn-label" data-fr="Aller au contact" data-en="Go to contact">Aller au contact</span>
+      </a>
+
+      <button type="button" class="btn-ghost" id="cvNoticeDismiss">
+        <span data-fr="Pas maintenant" data-en="Not now">Pas maintenant</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- A PROPOS -->
+<section id="about" class="section">
+  <div class="container section-content">
+    <h2 class="section-title reveal-up" data-fr="À propos de moi" data-en="About me">
+      À propos de moi
+    </h2>
+
+    <div class="about-grid">
+      <!-- Bloc principal -->
+      <article class="about-card reveal-up reveal-delay-1">
+        <p
+          data-fr="Je m’appelle Ahmed, ingénieur en <span class='brand-highlight'>Électronique des Systèmes Embarqués</span> et actuellement en <span class='brand-highlight'>Master Expert SI & Sécurité</span>. Je développe une double expertise au service de la performance numérique.<br><br>Chez <span class='brand-highlight'>Orange Business</span>, nous accompagnons la transformation digitale des entreprises sur l’ensemble de leur chaîne de valeur : connectivité réseau, cloud, cybersécurité, intelligence artificielle, data analytics, IoT et transformation digitale. J’interviens plus particulièrement sur les enjeux <span class='brand-highlight'>Data</span>."
+          data-en="My name is Ahmed. I am an <span class='brand-highlight'>Embedded Systems Engineering</span> graduate and currently pursuing a <span class='brand-highlight'>Master’s degree in Information Systems and Security</span>. I am building a dual expertise dedicated to digital performance.<br><br>At <span class='brand-highlight'>Orange Business</span>, we support organizations in their digital transformation across the entire value chain: network connectivity, cloud, cybersecurity, artificial intelligence, data analytics, IoT, and digital transformation. I focus specifically on <span class='brand-highlight'>Data</span>-related challenges."
+        >
+          Je m’appelle Ahmed, ingénieur en <span class="brand-highlight">Électronique des Systèmes Embarqués</span> et actuellement en <span class="brand-highlight">Master Expert SI & Sécurité</span>.
+          <br><br>
+          Je développe une double expertise au service de la performance numérique.
+          <br><br>
+          Chez <span class="brand-highlight">Orange Business</span>, nous accompagnons la transformation digitale des entreprises sur l’ensemble de leur chaîne de valeur :
+          connectivité réseau, cloud, cybersécurité, intelligence artificielle, data analytics, IoT et transformation digitale.
+          <br><br>
+          J’interviens plus particulièrement sur les enjeux <span class="brand-highlight">Data</span>.
+        </p>
+      </article>
+
+      <!-- Bloc complémentaire -->
+      <article class="about-card reveal-up reveal-delay-2">
+        <p
+          data-fr="Mon parcours hybride et ma <span class='brand-highlight'>polyvalence technique</span> me permettent de m’adapter à des problématiques variées, en faisant le lien entre <span class='brand-highlight'>infrastructure, cybersécurité et analyse de données</span>.<br><br>Mon objectif est de produire des solutions concrètes, fiables, sécurisées et orientées valeur. Cette vision globale me permet également de collaborer efficacement avec des interlocuteurs métiers et techniques, afin de transformer les besoins opérationnels en solutions exploitables."
+          data-en="My hybrid background and <span class='brand-highlight'>technical versatility</span> allow me to adapt to a wide range of challenges by bridging <span class='brand-highlight'>infrastructure, cybersecurity, and data analytics</span>.<br><br>My objective is to deliver concrete, reliable, secure, and value-driven solutions. This global vision also helps me collaborate efficiently with both business and technical stakeholders, turning operational needs into actionable solutions."
+        >
+          Mon parcours hybride et ma <span class="brand-highlight">polyvalence technique</span> me permettent de m’adapter à des problématiques variées,
+          en faisant le lien entre <span class="brand-highlight">infrastructure, cybersécurité et analyse de données</span>.
+          <br><br>
+          Mon objectif est de produire des solutions concrètes, fiables, sécurisées et orientées valeur.
+          Cette vision globale me permet également de collaborer efficacement avec des interlocuteurs métiers et techniques,
+          afin de transformer les besoins opérationnels en solutions exploitables.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience" class="section">
+  <div class="container section-content">
+    <h2 class="section-title reveal-up" data-fr="Expériences" data-en="Experience">Expériences</h2>
+    <p class="section-subtitle reveal-up reveal-delay-1"
+       data-fr="Présentation de mon parcours professionnel et académique"
+       data-en="Overview of my professional and academic background">
+      Présentation de mon parcours professionnel et académique
+    </p>
+
+    <!-- Filtres -->
+    <div class="exp-filters reveal-up reveal-delay-1">
+      <button class="exp-filter active" data-filter="all" data-fr="Tout" data-en="All">Tout</button>
+      <button class="exp-filter" data-filter="pro" data-fr="Professionnel" data-en="Professional">Professionnel</button>
+      <button class="exp-filter" data-filter="academic" data-fr="Académique" data-en="Academic">Académique</button>
+    </div>
+
+    <div class="experience-timeline">
+<!-- EXPERIENCE PRO -->
+<article class="experience-card reveal-up reveal-delay-1 tilt-card" data-type="pro">
+  <span class="status-badge badge-ongoing" data-fr="En cours" data-en="Ongoing">En cours</span>
+  <div class="experience-main">
+    <span class="experience-type badge-alt" data-fr="Contrat en alternance" data-en="Apprenticeship contract">
+     Contrat en alternance
+
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight"
+              data-fr="Orange Business"
+              data-en="Orange Business">Orange Business</span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Data Analyst"
+              data-en="Data Analyst">Data Analyst </span>
+      </p>
+
+      <p class="experience-period"
+        data-fr="2026 — Aujourd’hui"
+        data-en="2026 — Present">
+        2026 — Aujourd’hui
+      </p>
+    </div>
+
+    <div class="experience-block">
+      <h4 data-fr="Missions" data-en="Responsibilities">Missions</h4>
+      <ul class="experience-list-items">
+        <li data-fr="Collecte, nettoyage et structuration des données pour les analyses."
+            data-en="Collect, clean, and structure data for analysis.">
+          Collecte, nettoyage et structuration des données pour les analyses.
+        </li>
+        <li data-fr="Développement et automatisation de reportings et tableaux de bord."
+            data-en="Develop and automate reporting and dashboards.">
+          Développement et automatisation de reportings et tableaux de bord.
+        </li>
+        <li data-fr="Création de pipelines ETL pour fiabiliser les flux de données."
+            data-en="Build ETL pipelines to improve data flow reliability.">
+          Création de pipelines ETL pour fiabiliser les flux de données.
+        </li>
+        <li data-fr="Contrôle de la qualité des données et correction des anomalies."
+            data-en="Monitor data quality and fix inconsistencies.">
+          Contrôle de la qualité des données et correction des anomalies.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+    <div class="experience-side">
+      <div class="experience-company-photo">
+        <img src="images/orange2.jpg" alt="Logo Orange Business">
+      </div>
+      <div class="experience-socials" aria-label="Réseaux sociaux Orange Business">
+        <a href="https://www.linkedin.com/company/orange-business/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+        <a href="https://twitter.com/orangebusiness" target="_blank" rel="noopener noreferrer" aria-label="X / Twitter"><i class="fab fa-x-twitter"></i></a>
+        <a href="https://www.facebook.com/OrangeBusiness/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.instagram.com/orangebusiness/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.youtube.com/@OrangeBusiness" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+        <a href="https://www.orange-business.com/fr" target="_blank" rel="noopener noreferrer" aria-label="Site web"><i class="fas fa-globe"></i></a>
+      </div>
+    </div>
+</article>
+
+<!-- EXPERIENCE ACADEMIC : ESIC -->
+<article class="experience-card reveal-up reveal-delay-2 tilt-card" data-type="academic">
+  <span class="status-badge badge-ongoing" data-fr="En cours" data-en="Ongoing">En cours</span>
+
+  <div class="experience-main">
+    <span class="experience-type badge-academic" data-fr="Parcours académique" data-en="Academic background">
+      Parcours académique
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight"
+              data-fr="École Supérieure d'Informatique et de Commerce"
+              data-en="Higher School of Computer Science and Commerce">
+          École Supérieure d'Informatique et de Commerce
+        </span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Systèmes d'Information et Sécurité"
+              data-en="Information Systems and Security">
+          Systèmes d'Information et Sécurité
+        </span>
+      </p>
+
+      <p class="experience-period" data-fr="2025 — Présent" data-en="2025 — Present">
+        2025 — Présent
+      </p>
+    </div>
+
+    <!-- RNCP 39394 objectif (Typewriter) -->
+    <p class="experience-subtitle">
+      <span data-fr="Mon objectif au cours de ce master est de " data-en="My goal during this master is to">
+        Mon objectif au cours de ce master est de
+      </span>
+      <span class="highlight rncp-objectif-typewriter" aria-live="polite"></span>
+    </p>
+
+    <p class="experience-subtitle experience-qualification">
+      <span data-fr="Niveau de qualification :" data-en="Qualification level:">Niveau de qualification : </span>
+      <span class="highlight" data-fr="Niveau 7" data-en="Level 7">Niveau 7</span>
+      <span data-fr="— " data-en=" — ">—</span>
+      <span class="highlight" data-fr="RNCP 39394" data-en="RNCP 39394">RNCP 39394</span>
+    </p>
+  </div>
+
+  <div class="experience-side">
+    <div class="experience-company-photo">
+      <img src="images/esic.png" alt="Logo ESIC">
+    </div>
+    <div class="experience-socials" aria-label="Réseaux sociaux ESIC">
+      <a href="https://fr.linkedin.com/school/esic-ecole-sup-rieure-d-informatique-et-du-commerce/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        <i class="fab fa-linkedin-in"></i>
+      </a>
+      <a href="https://www.francecompetences.fr/recherche/rncp/39394/" target="_blank" rel="noopener noreferrer" aria-label="Site web">
+        <i class="fas fa-globe"></i>
+      </a>
+    </div>
+  </div>
+</article>
+
+
+  <!-- EXPERIENCE PRO -->
+  <article class="experience-card reveal-up reveal-delay-1 tilt-card" data-type="pro">
+    <div class="experience-main">
+      <span class="experience-type badge-alt" data-fr="CDI" data-en="Full-time">
+      CDI
+
+      </span>
+
+      <div class="experience-headline">
+        <p class="experience-title-line">
+          <span class="experience-company brand-highlight"
+                data-fr="Remise Club"
+                data-en="Remise Club">Remise Club </span>
+          <span class="experience-separator"> - </span>
+          <span class="experience-role"
+                data-fr="Support IT & Technico-Commercial"
+                data-en="IT Support & Technical Sales">IT Support & Technical Sales </span>
+        </p>
+
+        <p class="experience-period"
+          data-fr="10-2023 - 09-2025"
+          data-en="10-2023 - 09-2025">
+          10-2023 - 09-2025
+        </p>
+      </div>
+
+      <div class="experience-block">
+        <h4 data-fr="Missions" data-en="Responsibilities">Missions</h4>
+        <ul class="experience-list-items">
+          <li data-fr="Support technique et résolution des incidents (matériel, logiciel, réseau)."
+              data-en="Technical support and incident resolution (hardware, software, network).">
+            Support technique et résolution des incidents (matériel, logiciel, réseau).
+          </li>
+          <li data-fr="Surveillance et optimisation des performances systèmes et réseau."
+              data-en="Monitoring and optimization of system and network performance.">
+            Surveillance et optimisation des performances systèmes et réseau.
+          </li>
+          <li data-fr="Maintenance et déploiement des équipements informatiques."
+              data-en="Maintenance and deployment of IT equipment.">
+            Maintenance et déploiement des équipements informatiques.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+      <div class="experience-side">
+        <div class="experience-company-photo">
+          <img src="images/remisecva.jpg" alt="Logo Remise Club">
+        </div>
+        <div class="experience-socials" aria-label="Réseaux sociaux Remise Club">
+          <a href="https://www.facebook.com/profile.php?id=61554012748658" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="https://www.instagram.com/remiseclub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+          <a href="https://remiseclub.com/" target="_blank" rel="noopener noreferrer" aria-label="Site web"><i class="fas fa-globe"></i></a>
+        </div>
+      </div>
+  </article>
+
+<!-- EXPERIENCE PRO -->
+<article class="experience-card reveal-up reveal-delay-1 tilt-card" data-type="pro">
+  <div class="experience-main">
+    <span class="experience-type badge-alt" data-fr="Stage" data-en="Internship">
+     Stage
+
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight"
+              data-fr="Air Algérie"
+              data-en="Air Algérie">Air Algérie</span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Stage technique"
+              data-en="Technical Internship">Technical Internship </span>
+      </p>
+
+      <p class="experience-period"
+        data-fr="2023"
+        data-en="2023">
+        2023
+      </p>
+    </div>
+
+    <div class="experience-block">
+      <h4 data-fr="Missions" data-en="Responsibilities">Missions</h4>
+      <ul class="experience-list-items">
+        <li data-fr="Réalisation des opérations de maintenance préventive et corrective sur les aéronefs."
+            data-en="Performed preventive and corrective maintenance operations on aircraft.">
+          Réalisation des opérations de maintenance préventive et corrective sur les aéronefs.
+        </li>
+        <li data-fr="Diagnostic des pannes électriques, électroniques et systèmes embarqués."
+            data-en="Diagnosed electrical, electronic, and embedded systems failures.">
+          Diagnostic des pannes électriques, électroniques et systèmes embarqués.
+        </li>
+        <li data-fr="Participation à des projets transverses liant maintenance, innovation et digitalisation."
+            data-en="Contributed to cross-functional projects combining maintenance, innovation, and digitalization.">
+          Participation à des projets transverses liant maintenance, innovation et digitalisation.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+    <div class="experience-side">
+      <div class="experience-company-photo">
+        <img src="images/Air_Algérie_Logo.svg.png" alt="Logo Air Algérie">
+      </div>
+      <div class="experience-socials" aria-label="Réseaux sociaux Air Algérie">
+        <a href="https://www.linkedin.com/company/airalgerie/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+        <a href="https://x.com/AirAlgerieAh" target="_blank" rel="noopener noreferrer" aria-label="X / Twitter"><i class="fab fa-x-twitter"></i></a>
+        <a href="https://www.facebook.com/AirAlgerieOfficiel" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.instagram.com/airalgerieah/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        <a href="https://airalgerie.dz/en/discover/our-company/" target="_blank" rel="noopener noreferrer" aria-label="Site web"><i class="fas fa-globe"></i></a>
+      </div>
+    </div>
+</article>
+
+
+<!-- EXPERIENCE PRO -->
+<article class="experience-card reveal-up reveal-delay-1 tilt-card" data-type="pro">
+  <div class="experience-main">
+    <span class="experience-type badge-alt" data-fr="Bénévolat" data-en="Volunteer">
+     Bénévolat
+
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight"
+              data-fr="CHAN TotalEnergies Algérie 2022"
+              data-en="CHAN TotalEnergies Algérie 2022">CHAN TotalEnergies Algérie 2022</span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Bénévolat"
+              data-en="Volunteer">Volunteer </span>
+      </p>
+
+      <p class="experience-period"
+        data-fr="01-2023 - 02-2023"
+        data-en="01-2023 - 02-2023">
+        01-2023 - 02-2023
+      </p>
+    </div>
+
+    <div class="experience-block">
+      <h4 data-fr="Missions" data-en="Responsibilities">Missions</h4>
+      <ul class="experience-list-items">
+        <li data-fr="Accueil et orientation des journalistes/photographes vers leurs places assignées."
+            data-en="Welcomed and guided journalists/photographers to assigned seats in media tribune.">
+          Réalisation des opérations de maintenance préventive et corrective sur les aéronefs.
+        </li>
+        <li data-fr="Vérification des accréditations et assistance technique."
+            data-en="Verified accreditations and provided technical support.">
+          Diagnostic des pannes électriques, électroniques et systèmes embarqués.
+        </li>
+        <li data-fr="Coordination des interviews et respect des règles éthiques journalistiques."
+            data-en="Coordinated interviews and ensured compliance with media ethics and rules.">
+          Participation à des projets transverses liant maintenance, innovation et digitalisation.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+    <div class="experience-side">
+      <div class="experience-company-photo">
+        <img src="images/caf.png" alt="Logo CAF">
+      </div>
+      <div class="experience-socials" aria-label="Réseaux sociaux CAF">
+        <a href="https://www.linkedin.com/company/confederation-africaine-de-football/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+        <a href="https://x.com/CAF_Online" target="_blank" rel="noopener noreferrer" aria-label="X / Twitter"><i class="fab fa-x-twitter"></i></a>
+        <a href="https://www.facebook.com/ConfederationAfricaineDeFootball/" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.instagram.com/caf_online/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+        <a href="https://www.youtube.com/user/MyAfricanFootball" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+        <a href="https://www.cafonline.com/" target="_blank" rel="noopener noreferrer" aria-label="Site web"><i class="fas fa-globe"></i></a>
+      </div>
+    </div>
+</article>
+
+
+<!-- EXPERIENCE ACADEMIC : USTHB Master -->
+<article class="experience-card reveal-up reveal-delay-2 tilt-card" data-type="academic">
+  <span class="status-badge badge-done" data-fr="Diplômé" data-en="Graduated">Diplômé</span>
+
+  <div class="experience-main">
+    <span class="experience-type badge-academic" data-fr="Parcours académique" data-en="Academic background">
+      Parcours académique
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight" data-fr="USTHB" data-en="USTHB">USTHB</span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Master Électronique des Systèmes Embarqués"
+              data-en="Master’s Degree in Embedded Systems Electronics">
+          Master Électronique des Systèmes Embarqués
+        </span>
+      </p>
+
+      <p class="experience-period" data-fr="2021 — 2023" data-en="2021 — 2023">
+        2021 — 2023
+      </p>
+    </div>
+
+    <!-- Spécialisation : typewriter (USTHB Master) -->
+    <p class="experience-subtitle">
+      <span data-fr="Spécialisation dans" data-en="Specialization in">Spécialisation dans</span>
+      <span
+        class="highlight usthb-master-typewriter"
+        aria-live="polite"
+      ></span>
+    </p>
+
+    <!-- Classement USTHB : typewriter -->
+    <p class="experience-subtitle experience-ranking">
+      <span data-fr="L’USTHB est classée" data-en="USTHB is ranked">
+        L’USTHB est classée
+      </span>
+      <span
+        class="highlight usthb-ranking-typewriter"
+        aria-live="polite"
+      ></span>
+    </p>
+  </div>
+
+  <div class="experience-side">
+    <div class="experience-company-photo">
+      <img src="images/USTHB.png" alt="Logo USTHB">
+    </div>
+
+    <div class="experience-socials" aria-label="Réseaux sociaux USTHB">
+      <a href="https://www.linkedin.com/school/usthb/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        <i class="fab fa-linkedin-in"></i>
+      </a>
+      <a href="https://www.facebook.com/USTHBOfficiel/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+        <i class="fab fa-facebook-f"></i>
+      </a>
+      <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+        <i class="fab fa-instagram"></i>
+      </a>
+      <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+        <i class="fab fa-youtube"></i>
+      </a>
+      <a href="https://www.usthb.dz/" target="_blank" rel="noopener noreferrer" aria-label="Site web">
+        <i class="fas fa-globe"></i>
+      </a>
+    </div>
+  </div>
+</article>
+
+
+<!-- EXPERIENCE ACADEMIC : USTHB Licence -->
+<article class="experience-card reveal-up reveal-delay-2 tilt-card" data-type="academic">
+  <span class="status-badge badge-done" data-fr="Diplômé" data-en="Graduated">Diplômé</span>
+
+  <div class="experience-main">
+    <span class="experience-type badge-academic" data-fr="Parcours académique" data-en="Academic background">
+      Parcours académique
+    </span>
+
+    <div class="experience-headline">
+      <p class="experience-title-line">
+        <span class="experience-company brand-highlight"
+              data-fr="Université des Sciences et de la Technologie Houari-Boumediene (USTHB)"
+              data-en="University of Science and Technology Houari-Boumediene (USTHB)">
+          Université des Sciences et de la Technologie Houari-Boumediene (USTHB)
+        </span>
+        <span class="experience-separator"> - </span>
+        <span class="experience-role"
+              data-fr="Licence en Électronique"
+              data-en="Bachelor's Degree in Electronics">
+          Licence en Électronique
+        </span>
+      </p>
+
+      <p class="experience-period" data-fr="2018 — 2021" data-en="2018 — 2021">
+        2018 — 2021
+      </p>
+    </div>
+
+    <!-- Spécialisation (après reformulation) -->
+    <p class="experience-subtitle">
+      <span data-fr="Spécialisation dans" data-en="Specialization in">
+        Spécialisation dans
+      </span>
+      <span class="highlight usthb-lic-specialization-typewriter" aria-live="polite"></span>
+    </p>
+
+    <!-- Typewriter "Classement" -->
+    <p class="experience-subtitle experience-ranking">
+      <span data-fr="L’USTHB est classée " data-en="USTHB is ranked ">
+        L’USTHB est classée
+      </span>
+      <span class="highlight usthb-lic-ranking-typewriter" aria-live="polite"></span>
+    </p>
+  </div>
+
+  <div class="experience-side">
+    <div class="experience-company-photo">
+      <img src="images/USTHB.png" alt="Logo USTHB">
+    </div>
+
+    <div class="experience-socials" aria-label="Réseaux sociaux USTHB">
+      <a href="https://www.linkedin.com/school/usthb/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        <i class="fab fa-linkedin-in"></i>
+      </a>
+      <a href="https://www.facebook.com/USTHBOfficiel/" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
+        <i class="fab fa-facebook-f"></i>
+      </a>
+      <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+        <i class="fab fa-instagram"></i>
+      </a>
+      <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" aria-label="YouTube">
+        <i class="fab fa-youtube"></i>
+      </a>
+      <a href="https://www.usthb.dz/" target="_blank" rel="noopener noreferrer" aria-label="Site web">
+        <i class="fas fa-globe"></i>
+      </a>
+    </div>
+  </div>
+</article>
+
+
+
+
+
+    </div>
+  </div>
+  
+</section>
+    </div>
+  </div>
+</section>
+
+
+ <!-- PROJECTS -->
+<section id="projects" class="section">
+  <div class="container">
+    <h2 class="section-title reveal-up" data-fr="Projets" data-en="Projects">Projets</h2>
+    <p class="section-subtitle reveal-up reveal-delay-1"
+       data-fr="Quelques projets auxquels j’ai contribué (Data, Web, IoT & Cloud)"
+       data-en="A few projects I contributed to (Data, Web, IoT & Cloud)">
+      Quelques projets auxquels j’ai contribué (Data, Web, IoT & Cloud)
+    </p>
+
+    <div class="projects-grid">
+
+        <article class="project-card reveal-up reveal-delay-2 project-upcoming">
+          <div class="project-image-wrap">
+            <img
+              src="images/projets/Smart Environment Monitoring Platform.png"
+              alt="Aperçu du projet Smart Environment Monitoring Platform"
+              class="project-image"
+              loading="lazy"
+            >
+            <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+          </div>
+
+          <div class="project-body">
+            <h3
+              data-fr="Plateforme intelligente de supervision environnementale"
+              data-en="Smart Environment Monitoring Platform"
+            >
+              Plateforme intelligente de supervision environnementale
+            </h3>
+
+            <p
+              data-fr="Une plateforme complète de supervision environnementale qui collecte les données de capteurs IoT, les transmet au cloud, les stocke dans une base de données, puis les valorise via un tableau de bord analytique."
+              data-en="A complete environmental monitoring platform that collects data from IoT sensors, sends it to the cloud, stores it in a database, and turns it into insights through an analytics dashboard."
+            >
+              Une plateforme complète de supervision environnementale qui collecte les données de capteurs IoT, les transmet au cloud, les stocke dans une base de données, puis les valorise via un tableau de bord analytique.
+            </p>
+
+            <div class="project-tags">
+              <span>IoT</span>
+              <span>Data</span>
+              <span>Cloud</span>
+            </div>
+          </div>
+        </article>
+
+
+        <article class="project-card reveal-up reveal-delay-2 project-upcoming">
+          <div class="project-image-wrap">
+            <img
+              src="images/projets/AWS Weather.jpg"
+              alt="Aperçu du projet AWS Weather Data Pipeline"
+              class="project-image"
+              loading="lazy"
+            >
+            <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+          </div>
+
+          <div class="project-body">
+            <h3
+              data-fr="Pipeline de données météorologiques sur AWS"
+              data-en="AWS Weather Data Pipeline"
+            >
+              Pipeline de données météorologiques sur AWS
+            </h3>
+
+            <p
+              data-fr="Démontrer la mise en œuvre d’un pipeline de données météorologiques de niveau industriel sur AWS, en s’appuyant sur des services managés pour couvrir tout le cycle data engineering : ingestion temps réel, traitement serverless, orchestration, stockage scalable et restitution analytique, dans une logique robuste et reproductible."
+              data-en="Demonstrate the implementation of an industrial-grade weather data pipeline on AWS, using managed services to cover the full data engineering lifecycle: real-time ingestion, serverless processing, orchestration, scalable storage, and analytical delivery in a robust and reproducible production approach."
+            >
+              Démontrer la mise en œuvre d’un pipeline de données météorologiques de niveau industriel sur AWS, en s’appuyant sur des services managés pour couvrir tout le cycle data engineering : ingestion temps réel, traitement serverless, orchestration, stockage scalable et restitution analytique, dans une logique robuste et reproductible.
+            </p>
+
+            <div class="project-tags">
+              <span>AWS</span><span>Data Pipeline</span><span>Serverless</span><span>Power BI</span>
+            </div>
+          </div>
+        </article>
+
+
+      <!-- Projet en cours -->
+      <article class="project-card reveal-up reveal-delay-2 project-ongoing">
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/ETL Pipeline Automatisé Multi-Sources.jpg"
+            alt="Aperçu du projet ETL Pipeline Automatisé Multi-Sources"
+            class="project-image"
+            loading="lazy"
+          >
+          <span class="status-badge badge-ongoing" data-fr="En cours" data-en="In progress">En cours</span>
+        </div>
+
+        <div class="project-body">
+          <h3
+            data-fr="Pipeline ETL automatisé multi-sources"
+            data-en="Automated Multi-Source ETL Pipeline"
+          >
+            Pipeline ETL automatisé multi-sources
+          </h3>
+
+          <p
+            data-fr="L’objectif de ce projet est de centraliser et d’automatiser le reporting des ventes provenant de plusieurs sources, avec une mise à jour quasi temps réel."
+            data-en="The goal of this project is to centralize and automate multi-source sales reporting with near real-time updates."
+          >
+            L’objectif de ce projet est de centraliser et d’automatiser le reporting des ventes provenant de plusieurs sources, avec une mise à jour quasi temps réel.
+          </p>
+
+          <div class="project-tags">
+            <span>Python</span><span>Apache Airflow</span><span>PostgreSQL</span><span>Docker</span><span>FastAPI</span>
+          </div>
+        </div>
+      </article>
+
+
+      <!-- Projet en cours -->
+      <article class="project-card reveal-up reveal-delay-2 project-ongoing">
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/Customer Churn Prediction.png"
+            alt="Aperçu du projet Customer Churn Prediction"
+            class="project-image"
+            loading="lazy"
+          >
+          <span class="status-badge badge-ongoing" data-fr="En cours" data-en="In progress">En cours</span>
+        </div>
+
+        <div class="project-body">
+          <h3
+            data-fr="Prédiction de churn client"
+            data-en="Customer Churn Prediction"
+          >
+            Prédiction de churn client
+          </h3>
+
+          <p
+            data-fr="Objectif : prédire et prioriser les clients à risque de churn afin de déclencher des actions de rétention ciblées."
+            data-en="Goal: predict and prioritize customers at risk of churn in order to trigger targeted retention actions."
+          >
+            Objectif : prédire et prioriser les clients à risque de churn afin de déclencher des actions de rétention ciblées.
+          </p>
+
+          <div class="project-tags">
+            <span>Python (Pandas, Scikit-learn)</span><span>Power BI</span><span>SHAP</span>
+          </div>
+        </div>
+      </article>
+
+<!-- PROJECT : Plateforme Business Intelligence -->
+<article class="project-card reveal-up reveal-delay-1">
+  <span class="status-badge badge-done"
+        data-fr="Terminé"
+        data-en="Completed">
+    Terminé
+  </span>
+
+  <div class="project-image-wrap">
+    <img
+      src="images/projets/Plateforme Business Intelligence.jpg"
+      alt="Aperçu du projet Plateforme Business Intelligence"
+      class="project-image"
+      loading="lazy"
+    >
+  </div>
+
+  <div class="project-body">
+    <h3
+      data-fr="Plateforme Business Intelligence"
+      data-en="Business Intelligence Platform"
+    >
+      Plateforme Business Intelligence
+    </h3>
+
+    <p
+      data-fr="Concevoir et déployer une architecture Business Intelligence complète avec une interface de visualisation moderne. Ce projet a permis de transformer un dashboard Excel interactif en plateforme Power BI avancée, afin d’extraire des KPI pertinents et de publier un tableau de bord accessible en ligne."
+      data-en="Design and deploy a complete Business Intelligence architecture with a modern visualization interface. This project transformed an interactive Excel dashboard into an advanced Power BI platform to extract relevant KPIs and publish an online dashboard."
+    >
+      Concevoir et déployer une architecture Business Intelligence complète avec une interface de visualisation moderne.
+      Ce projet a permis de transformer un dashboard Excel interactif en plateforme Power BI avancée,
+      afin d’extraire des KPI pertinents et de publier un tableau de bord accessible en ligne.
+    </p>
+
+    <div class="project-tags">
+      <span>SQL</span><span>Excel</span><span>Power Query</span><span>Power BI</span><span>HTML/CSS</span><span>GitHub</span>
+    </div>
+
+    <div class="project-actions">
+      <a href="https://github.com/miahmed-mkh/Dashboard-IT-Company" target="_blank" rel="noopener noreferrer" class="project-btn">
+        <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+      </a>
+      <a href="https://www.linkedin.com/in/islem-ahmed-makhloufi/" target="_blank" rel="noopener noreferrer" class="project-btn ghost">
+        <i class='bx bxl-linkedin-square' aria-hidden="true"></i>
+        <span data-fr="LinkedIn" data-en="LinkedIn">LinkedIn</span>
+      </a>
+    </div>
+  </div>
+</article>
+
+
+
+
+        <article class="project-card reveal-up reveal-delay-1">
+          <span class="status-badge badge-done"
+                data-fr="Terminé"
+                data-en="Completed">
+            Terminé
+          </span>
+          <div class="project-image-wrap">
+            <img
+              src="images/projets/screen1_ecommerce.png"
+              alt="Aperçu du projet E-commerce Analytics Dashboard"
+              class="project-image"
+              loading="lazy">
+          </div>
+          <div class="project-body">
+            <h3
+              data-fr="E-commerce Analytics : Dashboard 50K transactions"
+              data-en="E-commerce Analytics: 50K Transactions Dashboard">
+              E-commerce Analytics : Dashboard 50K transactions
+            </h3>
+
+            <p
+              data-fr="Analyse complète de 50 000 transactions e-commerce (Python/Pandas) avec un dashboard Power BI interactif (KPI, segmentation clients, tendances), permettant d’identifier des opportunités business actionnables."
+              data-en="Comprehensive analysis of 50,000 e-commerce transactions (Python/Pandas) with an interactive Power BI dashboard (KPIs, customer segmentation, trends), enabling actionable business opportunities.">
+              Analyse complète de 50 000 transactions e-commerce (Python/Pandas) avec un dashboard Power BI interactif
+              (KPI, segmentation clients, tendances), permettant d’identifier des opportunités business actionnables.
+            </p>
+
+            <p
+              data-fr="Le projet met l’accent sur la transformation de données brutes en insights concrets afin d’optimiser le chiffre d’affaires, la fidélisation client et la performance marketing."
+              data-en="The project focuses on transforming raw data into concrete business insights to optimize revenue, customer retention, and marketing performance.">
+              Le projet met l’accent sur la transformation de données brutes en insights concrets afin d’optimiser
+              le chiffre d’affaires, la fidélisation client et la performance marketing.
+            </p>
+
+            <div class="project-tags">
+              <span>Python</span><span>Pandas</span><span>Power Query</span><span>Power BI</span><span>DAX</span><span>Kaggle</span>
+            </div>
+
+            <div class="project-actions">
+              <a href="https://github.com/miahmed-mkh/e-commerce-analytics" target="_blank" rel="noopener noreferrer" class="project-btn">
+                <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+              </a>
+            </div>
+          </div>
+        </article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+          <span class="status-badge badge-done"
+                data-fr="Terminé"
+                data-en="Completed">
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/retail_screen (1).png"
+            alt="Aperçu du projet de pilotage de la performance retail"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Pilotage de la performance retail avec Excel & Power BI"
+            data-en="Retail Performance Management with Excel & Power BI"
+          >
+            Pilotage de la performance retail avec Excel & Power BI
+          </h3>
+
+          <p
+            data-fr="Ce projet démontre comment transformer un fichier Excel statique en outil décisionnel dynamique, afin d’identifier rapidement les leviers de croissance."
+            data-en="This project demonstrates how to transform a static Excel file into a dynamic decision-making tool, enabling fast identification of growth levers."
+          >
+            Ce projet démontre comment transformer un fichier Excel statique en outil décisionnel dynamique,
+            afin d’identifier rapidement les leviers de croissance.
+          </p>
+
+          <div class="project-tags">
+            <span>Excel</span><span>Power Query</span><span>Power BI</span><span>Tableaux croisés dynamiques</span>
+          </div>
+
+          <div class="project-actions">
+            <a href="https://github.com/miahmed-mkh/Retail_avec_Excel_Power-BI" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="project-card reveal-up reveal-delay-2">
+          <span class="status-badge badge-done"
+                data-fr="Terminé"
+                data-en="Completed">
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/pizzza_screen1.png"
+            alt="Aperçu du tableau de bord de performance des ventes de pizzas"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Tableau de bord de performance des ventes de pizzas"
+            data-en="Pizza Sales Performance Dashboard"
+          >
+            Tableau de bord de performance des ventes de pizzas
+          </h3>
+
+          <p
+            data-fr="Conception et déploiement d’une solution BI complète sous SQL Server et Power BI pour le pilotage d’activité d’une pizzeria. Le projet transforme les données brutes en KPI actionnables, afin d’analyser les tendances de consommation et d’optimiser la rentabilité du menu grâce à une segmentation précise des produits."
+            data-en="Design and deployment of a complete BI solution using SQL Server and Power BI for pizzeria business monitoring. The project transforms raw data into actionable KPIs to analyze consumption trends and optimize menu profitability through precise product segmentation."
+          >
+            Conception et déploiement d’une solution BI complète sous SQL Server et Power BI pour le pilotage d’activité d’une pizzeria.
+            Le projet transforme les données brutes en KPI actionnables, afin d’analyser les tendances de consommation et d’optimiser la rentabilité du menu grâce à une segmentation précise des produits.
+          </p>
+
+          <div class="project-tags">
+            <span>SQL</span><span>Excel</span><span>Power BI</span><span>DAX</span>
+          </div>
+
+          <div class="project-actions">
+            <a href="https://github.com/miahmed-mkh/Tableau-de-bord-intelligent-des-ventes-de-pizzas" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+
+<article class="project-card reveal-up reveal-delay-3">
+  <span class="status-badge badge-done"
+        data-fr="Terminé"
+        data-en="Completed">
+    Terminé
+  </span>
+
+  <div class="project-image-wrap">
+    <img
+      src="images/projets/covide19_2.png"
+      alt="Aperçu du dashboard d’analyse COVID-19"
+      class="project-image"
+      loading="lazy"
+    >
+  </div>
+
+  <div class="project-body">
+    <h3
+      data-fr="Dashboard d’analyse COVID-19"
+      data-en="COVID-19 Analytics Dashboard"
+    >
+      Dashboard d’analyse COVID-19
+    </h3>
+
+    <p
+      data-fr="Dashboard d’analyse de l’impact de la pandémie COVID-19, construit avec PostgreSQL et Looker Studio, à partir des données publiques d’Our World in Data."
+      data-en="Dashboard analyzing the impact of the COVID-19 pandemic, built with PostgreSQL and Looker Studio using public data from Our World in Data."
+    >
+      Dashboard d’analyse de l’impact de la pandémie COVID-19, construit avec PostgreSQL et Looker Studio,
+      à partir des données publiques d’Our World in Data.
+    </p>
+
+    <p
+      data-fr="Le projet couvre une chaîne BI complète : collecte et nettoyage ETL, modélisation SQL, calcul de KPI et visualisation interactive avec filtres dynamiques."
+      data-en="The project covers a complete BI pipeline: ETL data collection and cleaning, SQL modeling, KPI calculations, and interactive visualization with dynamic filters."
+    >
+      Le projet couvre une chaîne BI complète : collecte et nettoyage ETL, modélisation SQL,
+      calcul de KPI et visualisation interactive avec filtres dynamiques.
+    </p>
+
+    <div class="project-tags">
+      <span>PostgreSQL</span><span>Looker Studio</span><span>ETL</span><span>API</span>
+    </div>
+
+    <div class="project-actions">
+      <a href="https://github.com/miahmed-mkh/Dashboard-COVID-19-Looker-Studio-MySQL" target="_blank" rel="noopener noreferrer" class="project-btn">
+        <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+      </a>
+    </div>
+  </div>
+</article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+        <span class="status-badge badge-done"
+              data-fr="Terminé"
+              data-en="Completed">
+          Terminé
+        </span>
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/pfe2.png"
+            alt="Aperçu du projet système autonome d’alimentation RF pour IoT"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Système autonome d’alimentation RF pour IoT"
+            data-en="Autonomous RF Power Supply System for IoT"
+          >
+            Système autonome d’alimentation RF pour IoT
+          </h3>
+
+          <p
+            data-fr="Projet de recherche appliquée visant à développer une source d’alimentation autonome pour l’IoT et les capteurs sans fil, via la récupération d’ondes RF ambiantes."
+            data-en="Applied research project aimed at developing an autonomous power source for IoT and wireless sensors through ambient RF energy harvesting."
+          >
+            Projet de recherche appliquée visant à développer une source d’alimentation autonome pour l’IoT et les capteurs sans fil,
+            via la récupération d’ondes RF ambiantes.
+          </p>
+
+          <p
+            data-fr="Résultat : un prototype fonctionnel démontrant la faisabilité pour alimenter des dispositifs miniaturisés en surveillance environnementale, santé connectée et industrie."
+            data-en="Outcome: a functional prototype demonstrating feasibility for powering miniaturized devices in environmental monitoring, digital health, and industry."
+          >
+            Résultat : un prototype fonctionnel démontrant la faisabilité pour alimenter des dispositifs miniaturisés
+            en surveillance environnementale, santé connectée et industrie.
+          </p>
+
+          <div class="project-tags">
+            <span>IoT</span><span>HFSS</span><span>Embedded C</span>
+          </div>
+
+          <div class="project-actions">
+            <a href="https://github.com/miahmed-mkh" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bxl-github'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+      <span class="status-badge badge-done"
+            data-fr="Terminé"
+            data-en="Completed">
+        Terminé
+      </span>
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/esp32-access-system.jpg"
+            alt="Aperçu du système de contrôle d'accès biométrique avec ESP32"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Contrôle d’accès biométrique avec ESP32"
+            data-en="Biometric Access Control with ESP32"
+          >
+            Contrôle d’accès biométrique avec ESP32
+          </h3>
+
+          <p
+            data-fr="Système IoT de contrôle d’accès et de pointage biométrique basé sur ESP32 avec capteur d’empreintes digitales."
+            data-en="IoT-based biometric access control and attendance system built on ESP32 with a fingerprint sensor."
+          >
+            Système IoT de contrôle d’accès et de pointage biométrique basé sur ESP32 avec capteur d’empreintes digitales.
+          </p>
+
+          <p
+            data-fr="Fonctionnalités : authentification en temps réel, affichage LCD des résultats et stockage des données d’accès en base de données."
+            data-en="Features: real-time authentication, LCD result display, and access data storage in a database."
+          >
+            Fonctionnalités : authentification en temps réel, affichage LCD des résultats et stockage des données d’accès en base de données.
+          </p>
+
+          <div class="project-tags">
+            <span>IoT</span><span>ESP32</span><span>Embedded C</span><span>RFID</span><span>PHP</span>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+      <span class="status-badge badge-done"
+            data-fr="Terminé"
+            data-en="Completed">
+        Terminé
+      </span>
+
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/stationement.png"
+            alt="Aperçu du système d’aide au stationnement pour véhicules"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Système d’aide au stationnement pour véhicules"
+            data-en="Vehicle Parking Assistance System"
+          >
+            Système d’aide au stationnement pour véhicules
+          </h3>
+
+          <p
+            data-fr="Étude théorique et réalisation pratique d’un système d’assistance à la marche arrière capable de détecter les obstacles, de protéger le véhicule et de sécuriser les piétons, notamment les enfants."
+            data-en="Theoretical study and practical implementation of a reverse parking assistance system capable of detecting obstacles, protecting the vehicle, and improving pedestrian safety, especially for children."
+          >
+            Étude théorique et réalisation pratique d’un système d’assistance à la marche arrière capable de détecter les obstacles,
+            de protéger le véhicule et de sécuriser les piétons, notamment les enfants.
+          </p>
+
+          <p
+            data-fr="Objectifs : améliorer le confort et la sécurité de conduite, tout en servant de base à des technologies plus avancées (stationnement automatisé, freinage d’urgence)."
+            data-en="Objectives: improve driving comfort and safety, while serving as a foundation for more advanced technologies (automated parking, emergency braking)."
+          >
+            Objectifs : améliorer le confort et la sécurité de conduite, tout en servant de base à des technologies plus avancées
+            (stationnement automatisé, freinage d’urgence).
+          </p>
+
+          <p
+            data-fr="Impact : solution applicable à différentes gammes de véhicules."
+            data-en="Impact: a solution applicable across different vehicle categories."
+          >
+            Impact : solution applicable à différentes gammes de véhicules.
+          </p>
+
+          <div class="project-tags">
+            <span>IoT</span><span>ESP32</span><span>Embedded C</span>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+      <span class="status-badge badge-done"
+            data-fr="Terminé"
+            data-en="Completed">
+        Terminé
+      </span>
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/home-automation-with-raspberry-pi.jpg"
+            alt="Aperçu du projet de box domotique Raspberry Pi avec Domoticz"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Box domotique Raspberry Pi avec Domoticz"
+            data-en="Raspberry Pi Domoticz Home Automation Box"
+          >
+            Box domotique Raspberry Pi avec Domoticz
+          </h3>
+
+          <p
+            data-fr="Conception d’un Linux embarqué sur Raspberry Pi pour la domotique, avec installation de Domoticz. Le système centralise la gestion des capteurs et des équipements domestiques (éclairage, chauffage, sécurité) via une interface web et des scénarios d’automatisation programmables."
+            data-en="Design of an embedded Linux system on Raspberry Pi for home automation, with Domoticz installation. The platform centralizes the management of sensors and household devices (lighting, heating, security) through a web interface and programmable automation scenarios."
+          >
+            Conception d’un Linux embarqué sur Raspberry Pi pour la domotique, avec installation de Domoticz.
+            Le système centralise la gestion des capteurs et des équipements domestiques (éclairage, chauffage, sécurité)
+            via une interface web et des scénarios d’automatisation programmables.
+          </p>
+
+          <div class="project-tags">
+            <span>Raspberry Pi</span><span>Domoticz</span><span>Linux Embarqué</span><span>IoT</span>
+          </div>
+        </div>
+      </article>
+
+
+      <article class="project-card reveal-up reveal-delay-1">
+      <span class="status-badge badge-done"
+            data-fr="Terminé"
+            data-en="Completed">
+        Terminé
+      </span>
+        <div class="project-image-wrap">
+          <img
+            src="images/projets/pdf_l3.png"
+            alt="Aperçu du projet station IoT multi-capteurs ESP32"
+            class="project-image"
+            loading="lazy"
+          >
+        </div>
+        <div class="project-body">
+          <h3
+            data-fr="Station IoT multi-capteurs avec ESP32"
+            data-en="ESP32 Multi-Sensor IoT Station"
+          >
+            Station IoT multi-capteurs avec ESP32
+          </h3>
+
+          <p
+            data-fr="Station domotique multi-capteurs (température/humidité DHT11, gaz MQ-2, flamme AC0019) pilotée par ESP32, avec transmission Wi-Fi et interface web HTML. Le système fournit des mesures en temps réel pour la surveillance environnementale en contexte domotique et industriel. Projet de fin de Licence."
+            data-en="Multi-sensor home automation station (DHT11 temperature/humidity, MQ-2 gas, AC0019 flame) powered by ESP32, with Wi-Fi transmission and an HTML web interface. The system provides real-time measurements for environmental monitoring in home and industrial contexts. Final-year Bachelor project."
+          >
+            Station domotique multi-capteurs (température/humidité DHT11, gaz MQ-2, flamme AC0019) pilotée par ESP32,
+            avec transmission Wi-Fi et interface web HTML.
+            Le système fournit des mesures en temps réel pour la surveillance environnementale en contexte domotique et industriel.
+            Projet de fin de Licence.
+          </p>
+
+          <div class="project-tags">
+            <span>IoT</span><span>ESP32</span><span>Embedded C</span><span>HTML/CSS</span><span>PHP</span><span>Web Interface</span>
+          </div>
+
+          <div class="project-actions">
+            <a href="https://www.linkedin.com/in/islem-ahmed-makhloufi/overlay/Project/1980728138/treasury/?profileId=ACoAADk_VIQBkHOhLKQQgkNC6PW8Ii7KgD-0jzo" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bxl-linkedin-square'></i> <span data-fr="Voir le projet" data-en="View project">Voir le projet</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+
+    </div>
+  </div>
+</section>
+
+    <!-- SKILLS -->
+    <section id="skills" class="section">
+      <div class="container">
+        <h2 class="section-title reveal-up" data-fr="Compétences" data-en="Skills">Compétences</h2>
+        <p class="section-subtitle reveal-up reveal-delay-1"
+           data-fr=""
+           data-en="">
+        </p>
+
+        <div class="skills-grid">
+
+          <!-- Programmation -->
+          <div class="skills-card reveal-up reveal-delay-1 skills-category">
+            <h3 data-fr="Programmation" data-en="Programming">Programmation</h3>
+            <ul class="skills-progress-list">
+              <li data-percent="70"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-python'></i> Python</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="60"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-php'></i> PHP</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="70"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-javascript'></i> JavaScript</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-code-alt'></i> C/C++</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-data'></i> SQL</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="85"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-html5'></i> HTML/CSS</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+            </ul>
+          </div>
+
+          <!-- Données et BI -->
+          <div class="skills-card reveal-up reveal-delay-2 skills-category">
+            <h3 data-fr="Données & BI" data-en="Data & BI">Données & BI</h3>
+            <ul class="skills-progress-list">
+              <li data-percent="65"><span class="skill-top-line"><span class="skill-left"><i class='bx bxs-bar-chart-alt-2'></i> Power BI</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="60"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-line-chart'></i> Tableau/Metabase</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="80"><span class="skill-top-line"><span class="skill-left"><i class='bx bxs-spreadsheet'></i> Excel</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-cylinder'></i> MySQL/PostgreSQL</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="70"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-mongodb'></i> MongoDB</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+            </ul>
+          </div>
+
+          <!-- Cloud et DevOps -->
+          <div class="skills-card reveal-up reveal-delay-3 skills-category">
+            <h3 data-fr="Cloud & DevOps" data-en="Cloud & DevOps">Cloud & DevOps</h3>
+            <ul class="skills-progress-list">
+              <li data-percent="50"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-aws'></i> AWS</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="50"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-microsoft'></i> Azure</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="70"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-docker'></i> Docker</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="60"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-terminal'></i> Ansible</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-git'></i> Git/GitHub</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="70"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-tux'></i> Linux</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+            </ul>
+          </div>
+
+          <!-- Embarqué et IoT -->
+          <div class="skills-card reveal-up reveal-delay-1 skills-category">
+            <h3 data-fr="Embarqué & IoT" data-en="Embedded & IoT">Embarqué & IoT</h3>
+            <ul class="skills-progress-list">
+              <li data-percent="80"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-microchip'></i> Arduino</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-chip'></i> ESP32</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="55"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-code-block'></i> VHDL</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="60"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-math'></i> MATLAB</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="75"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-signal-5'></i> HFSS</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="50"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-cube'></i> SolidWorks</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+            </ul>
+          </div>
+
+          <!-- Outils -->
+          <div class="skills-card reveal-up reveal-delay-2 skills-category">
+            <h3 data-fr="Outils" data-en="Tools">Outils</h3>
+            <ul class="skills-progress-list">
+              <li data-percent="90"><span class="skill-top-line"><span class="skill-left"><i class='bx bxl-visual-studio'></i> VS Code</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="90"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-task'></i> Jira</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="90"><span class="skill-top-line"><span class="skill-left"><i class='bx bx-columns'></i> Trello</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+              <li data-percent="90"><span class="skill-top-line"><span class="skill-left"><i class='bx bxs-file-doc'></i> Pack Office</span><span class="percent-text"></span></span><div class="progress-bar-container"><div class="progress-bar"></div></div></li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+<!-- CERTIFICATIONS -->
+<section id="certifications" class="section">
+  <div class="container">
+    <h2 class="section-title reveal-up" data-fr="Certifications" data-en="Certifications">Certifications</h2>
+    <p class="section-subtitle reveal-up reveal-delay-1"
+       data-fr="Mes certifications techniques & linguistiques"
+       data-en="My technical & Language Certifications">
+      Mes Certifications techniques & linguistiques.
+
+    </p>
+    <div class="projects-grid cert-grid">
+
+      <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card project-upcoming">
+        <div class="project-image-wrap">
+          <img src="images/certifications/AZ900.png" alt="Certification à venir" class="project-image">
+          <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+        </div>
+        <div class="project-body">
+          <h3 data-fr="Microsoft Azure Fundamentals (AZ-900)"
+              data-en="Microsoft Azure Fundamentals (AZ-900)">
+            Microsoft Azure Fundamentals (AZ-900)
+          </h3>
+          <p data-fr="Certification fondamentale Microsoft Azure couvrant les concepts cloud, les services Azure, la sécurité, la conformité et la tarification."
+            data-en="Foundational Microsoft Azure certification covering cloud concepts, Azure services, security, compliance and pricing.">
+            Certification fondamentale Microsoft Azure couvrant les concepts cloud, les services Azure, la sécurité, la conformité et la tarification.
+          </p>
+          <div class="project-tags">
+            <span>Azure</span><span>Cloud</span><span>Microsoft</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card project-upcoming">
+        <div class="project-image-wrap">
+          <img src="images/certifications/Microsoft Microsoft Azure DP-500.png" alt="Certification à venir" class="project-image">
+          <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+        </div>
+        <div class="project-body">
+          <h3 data-fr="Microsoft Microsoft Azure DP-500"
+              data-en="Microsoft Microsoft Azure DP-500">
+            Microsoft Microsoft Azure DP-500
+          </h3>
+          <p data-fr="Expert en solutions analytiques Azure et Power BI, certifié pour concevoir des architectures Data Lake, piloter des flux ETL complexes et déployer des solutions BI sécurisées, performantes et scalables à l’échelle de l'entreprise."
+            data-en="Certified expert in Azure and Power BI analytics, specializing in the design of large-scale data lakes, complex ETL pipelines, and the deployment of secure, scalable enterprise BI solutions.">
+            Microsoft, certifié pour concevoir des architectures Data Lake, piloter des flux ETL complexes et déployer des solutions BI sécurisées, performantes et scalables à l’échelle de l'entreprise.          </p>
+          <div class="project-tags">
+            <span>Azure</span><span>Cloud</span><span>Microsoft</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card project-upcoming">
+        <div class="project-image-wrap">
+          <img src="images/certifications/AZ-220.jpg" alt="Certification à venir" class="project-image">
+          <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+        </div>
+        <div class="project-body">
+          <h3 data-fr="Microsoft Certified: Azure IoT Developer Specialty (AZ-220)"
+              data-en="Microsoft Certified: Azure IoT Developer Specialty (AZ-220)">
+            Microsoft Microsoft Azure DP-500
+          </h3>
+          <p data-fr="Certification avancée validant l'expertise en développement d'applications IoT sur Azure IoT Hub, Azure IoT Edge, Stream Analytics et intégration Power BI pour analytics temps réel."
+            data-en="Advanced certification validating expertise in developing IoT applications on Azure IoT Hub, Azure IoT Edge, Stream Analytics, and Power BI integration for real-time analytics.">
+            Certification avancée validant l'expertise en développement d'applications IoT sur Azure IoT Hub, Azure IoT Edge, Stream Analytics et intégration Power BI pour analytics temps réel.
+
+          </p>
+          <div class="project-tags">
+            <span>Azure IoT Hub</span><span>Stream Analytics</span><span>Power BI</span><span>Data pipelines cloud</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-2 tilt-card cert-ongoing">
+        <div class="project-image-wrap">
+          <img src="images/certifications/aws.png" alt="Certification en cours" class="project-image">
+          <span class="status-badge badge-ongoing" data-fr="En cours" data-en="In progress">En cours</span>
+        </div>
+        <div class="project-body">
+          <h3>MLS-C01: AWS Certifié Machine Learning - Spécialité</h3>
+          <p>6 examens blancs complets pour AWS Certified ML Specialty (MLS-C01 2026), couvrant data engineering, features, modèles, déploiement et supervision avec explications détaillées.</p>
+
+          <div class="project-tags">
+            <span>AI/ML</span><span>Database Management Systems</span><span>MLS-C01</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-2 tilt-card cert-ongoing">
+        <div class="project-image-wrap">
+          <img src="images/certifications/pl300.png" alt="Certification en cours" class="project-image">
+          <span class="status-badge badge-ongoing" data-fr="En cours" data-en="In progress">En cours</span>
+        </div>
+        <div class="project-body">
+          <h3>Analyste de données Microsoft Power BI (PL-300)</h3>
+          <p>Formation pour la certification Microsoft Certified: Power BI Data Analyst (PL-300), centrée sur les compétences Power BI, l’analyse de données et la création de tableaux de bord.</p>
+
+          <div class="project-tags">
+            <span>Microsoft Excel</span><span>Microsoft Power Platform</span><span>Power BI</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-2 tilt-card cert-ongoing">
+        <div class="project-image-wrap">
+          <img src="images/certifications/sql.avif" alt="Certification en cours" class="project-image">
+          <span class="status-badge badge-ongoing" data-fr="En cours" data-en="In progress">En cours</span>
+        </div>
+        <div class="project-body">
+          <h3>SQL for Data Analysis – DataCamp</h3>
+          <p>Formation pratique sur les requêtes SQL, bases de données relationnelles, extraction et analyse de données structurées.</p>
+
+          <div class="project-tags">
+            <span>MySQL</span><span>Query Languages</span><span>Relational Databases</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/AWS Databases & Compute for Data Engineers.jpeg" alt="Azure Fundamentals" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>AWS Databases & Compute for Data Engineers</h3>
+          <p>Formation pratique sur DynamoDB, RDS, EC2, Lambda, conteneurs (Docker/ECS/EKS) et migration de données (DMS/DataSync).</p>
+          <div class="project-tags">
+            <span>AWS</span><span>Cloud Engineering</span><span>Kubernetes</span><span>Docker (Software)</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://www.coursera.org/account/accomplishments/verify/J3KXBYN9HSKB" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-badge-check'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/Architecting-on-AWS.png" alt="AWS" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>Architecting Solutions on AWS</h3>
+          <div class="project-tags">
+            <span>AWS</span><span>Cloud Security</span><span>Data Analysis</span><span>Software Architecture</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://www.coursera.org/account/accomplishments/verify/08C2808NSREO" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-badge-check'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-2 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/AWS Certified Machine Learning Data Engineering, Machine Learning, & AWS.png" alt="Google Data Analytics" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>AWS Certified Machine Learning: Data Engineering, Machine Learning, & AWS</h3>
+          <p>AWS Certified Machine Learning: Data Engineering, ML & AWS (prépa MLA-C01), couvrant préparation de données, développement de modèles, déploiement/orchestration de workflows ML sur AWS.</p>
+          <div class="project-tags">
+            <span>Machine Learning</span><span>Data Engineering</span><span>AWS</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://skillsoft.digitalbadges-eu.skillsoft.com/7a7a4ea4-4ac8-4b04-bd80-872bf57f253b#acc.btdC21AO" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-link-external'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-3 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/AWS Data Engineer Associate 2025 End-to-End Data Pipelines.png" alt="AWS Cloud Practitioner" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>AWS Data Engineer Associate 2025: End-to-End Data Pipelines</h3>
+          <p>AWS Data Engineer Associate 2025: End-to-End Data Pipelines, formation pratique orientée projets pour concevoir, construire et orchestrer des pipelines de données de bout en bout sur AWS.</p>
+          <div class="project-tags">
+            <span>AWS</span><span>Cloud</span><span>Foundational</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://www.credly.com/" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-badge-check'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-3 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/data-intro.jpg" alt="AWS Cloud Practitioner" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>Introduction to Data Analytics</h3>
+          <p>Introduction to Data Analytics (Coursera/Meta), bases du processus analytique (OSEMN : extraction, nettoyage, analyse, visualisation) avec cas pratiques et KPIs métiers.</p>
+          <div class="project-tags">
+            <span>Microsoft Excel</span><span>Apache Spark</span><span>Data Lakes</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://www.coursera.org/account/accomplishments/verify/NBGA044ABWRS" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-badge-check'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-3 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/Automotive Embedded Systems.jpg" alt="AWS Cloud Practitioner" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>Automotive Embedded Systems</h3>
+          <p>Formation sur les ECU automobiles, protocoles CAN/LIN, RTOS, programmation Embedded C et normes de sécurité ISO 26262.</p>
+          <div class="project-tags">
+            <span>ECU</span><span>CAN/LIN</span><span>RTOS</span>
+          </div>
+          <div class="project-actions">
+            <a href="https://www.linkedin.com/in/islem-ahmed-makhloufi/overlay/Certifications/1695074119/treasury/?profileId=ACoAADk_VIQBkHOhLKQQgkNC6PW8Ii7KgD-0jzo" target="_blank" rel="noopener noreferrer" class="project-btn">
+              <i class='bx bx-badge-check'></i> <span data-fr="Voir le certificat" data-en="View certificate">Voir le certificat</span>
+            </a>
+          </div>
+        </div>
+      </article>
+
+        <article class="project-card cert-card reveal-up reveal-delay-1 tilt-card project-upcoming">
+        <div class="project-image-wrap">
+          <img src="images/certifications/ets-toeic.jpg" alt="Certification à venir" class="project-image">
+          <span class="status-badge badge-upcoming" data-fr="À venir" data-en="Coming soon">À venir</span>
+        </div>
+        <div class="project-body">
+          <h3 data-fr=" Test International évaluant les compétences en Anglais Professionnel - TOEIC®"
+              data-en="Test of English for International Communication - TOEIC®">
+            TOEIC®
+          </h3>
+          <p data-fr="Certification reconnue internationalement (ETS - Educational Testing Service)."
+            data-en="Internationally recognized certification (ETS - Educational Testing Service).">
+           Certification reconnue internationalement (ETS - Educational Testing Service).
+          </p>
+        </div>
+      </article>
+
+      <article class="project-card cert-card reveal-up reveal-delay-3 tilt-card">
+      <span class="status-badge badge-done"
+            data-fr="Terminé & obtenu"
+            data-en="Completed & achieved">
+        Terminé & obtenu
+      </span>
+        <div class="project-image-wrap">
+          <img src="images/certifications/Ielts.png" alt="IELTS" class="project-image">
+        </div>
+        <div class="project-body">
+          <h3>International English Language Testing System (IELTS)</h3>
+          <p>IELTS : Score 5.5/9</p>
+          <p>Certification reconnue internationalement (British Council, IDP IELTS, Cambridge University Press & Assessment).</p>
+          <div class="project-tags"></div>
+        </div>
+      </article>
+
+
+    </div>
+  </div>
+</section>
+
+
+  <!-- CONTACT -->
+  <section id="contact" class="section">
+    <div class="container">
+      <h2 class="section-title reveal-up" data-fr="Contact" data-en="Contact">Contact</h2>
+      <p class="section-subtitle reveal-up reveal-delay-1"
+         data-fr="Faisons un échange ! "
+         data-en="Let’s talk ! ">
+        Faisons un échange ! 
+        </p>
+
+      <div class="contact-grid">
+        <!-- Infos -->
+        <div class="contact-card reveal-up reveal-delay-1">
+          <h3 data-fr="Mes coordonnées" data-en="My contact details">Mes coordonnées</h3>
+          <ul class="contact-list">
+            <li>
+              <i class='bx bx-envelope'></i>
+              <a href="mailto:makhloufiahmedislem@gmail.com">makhloufiahmedislem@gmail.com</a>
+            </li>
+            <li>
+              <i class='bx bx-phone'></i>
+              <a href="tel:+33780078172">+33 7 80 07 81 72</a>
+            </li>
+            <li>
+              <i class='bx bx-map'></i>
+              <span data-fr="France" data-en="France">France</span>
+            </li>
+            <li>
+              <i class='bx bxl-linkedin-square'></i>
+              <a href="https://www.linkedin.com/in/islem-ahmed-makhloufi" target="_blank" rel="noopener noreferrer">@Ahmed MAKHLOUFI</a>
+            </li>
+            <li>
+              <i class='bx bxl-github'></i>
+              <a href="https://github.com/miahmed-mkh" target="_blank" rel="noopener noreferrer">@miahmed-mkh</a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Formulaire -->
+<form
+  class="contact-card contact-form reveal-up reveal-delay-2"
+  id="contactForm"
+  action="https://formspree.io/f/xkokrwbl"
+  method="POST"
+>
+  <h3 data-fr="Envoyer un message" data-en="Send a message">Envoyer un message</h3>
+
+  <label for="name" data-fr="Nom" data-en="Name">Nom</label>
+  <input
+    type="text"
+    id="name"
+    name="name"
+    placeholder="Votre nom"
+    required
+  />
+
+  <label for="email" data-fr="Email" data-en="Email">Email</label>
+  <input
+    type="email"
+    id="email"
+    name="email"
+    placeholder="votre@email.com"
+    required
+  />
+
+  <label for="message" data-fr="Message" data-en="Message">Message</label>
+  <textarea
+    id="message"
+    name="message"
+    rows="5"
+    placeholder="Votre message..."
+    required
+  ></textarea>
+
+  <button type="submit" class="btn-primary btn-anim">
+    <span class="btn-backdrop"></span>
+    <span class="btn-label" data-fr="Envoyer" data-en="Send">Envoyer</span>
+  </button>
+
+  <p class="form-note" id="formNote"></p>
+</form>
+
+  <p class="form-note" id="formNote"></p>
+</form>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="container footer-content">
+    <p>
+      © <span id="yearNow"></span> Ahmed MAKHLOUFI —
+      <span data-fr="Tous droits réservés." data-en="All rights reserved.">Tous droits réservés.</span>
+    </p>
+
+    <div class="footer-links">
+      <a href="https://www.linkedin.com/in/islem-ahmed-makhloufi" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+        <i class='bx bxl-linkedin-square'></i>
+      </a>
+      <a href="https://github.com/miahmed-mkh" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+        <i class='bx bxl-github'></i>
+      </a>
+      <a href="mailto:makhloufiahmedislem@gmail.com" aria-label="Email">
+        <i class='bx bx-envelope'></i>
+      </a>
+    </div>
+  </div>
+</footer>
+
+<button id="backToTop" class="back-to-top" aria-label="Retour en haut">
+  <i class='bx bx-up-arrow-alt'></i>
+</button>
+
+<script src="main.js" defer></script>
+</body>
+</html>
