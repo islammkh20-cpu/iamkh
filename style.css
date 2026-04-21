@@ -1767,3 +1767,24 @@ body.light-mode .cv-notice-actions .btn-ghost:hover{
 .cursor-ring{
   z-index: 10001 !important; /* > cv-notice-modal (10000) */
 }
+
+/* Compétences : liste de 3 lignes */
+.experience-competences{
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.experience-competences li{
+  margin: 4px 0;
+  line-height: 1.35;
+  font-size: 0.98em; /* ajustable selon ton design */
+}
+
+/* Typewriter classement */
+.experience-ranking{
+  margin-top: 10px;
+}
+
+.experience-ranking .highlight{
+  display: inline-block;
+}
