@@ -788,3 +788,37 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Escape" && modal.style.display === "flex") closeModal();
   });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const buttons = document.querySelectorAll(".exp-filter");
+  const cards = document.querySelectorAll(".experience-card");
+
+  function applyFilter(filter) {
+    cards.forEach(card => {
+      const type = card.getAttribute("data-type");
+
+      // show all
+      if (filter === "all") {
+        card.style.display = "";
+        return;
+      }
+
+      // show matching
+      card.style.display = (type === filter) ? "" : "none";
+    });
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      // active class
+      buttons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const filter = btn.getAttribute("data-filter") || "all";
+      applyFilter(filter);
+    });
+  });
+
+  // initial
+  applyFilter("all");
+});
